@@ -18,7 +18,6 @@ type client struct {
 	stopReadCh chan struct{}
 
 	stopHeartCh chan struct{}
-	heartMu     *sync.Mutex
 	heartBeat   time.Duration
 
 	authFunc func(conn *ws.Conn) error
@@ -32,11 +31,10 @@ func NewClientWithAuth(Id string, url string, heartBeat time.Duration, authFunc 
 		mu:          &sync.Mutex{},
 		url:         url,
 		isConnected: false,
-		closeCh:     make(chan string),
+		closeCh:     make(chan string, 1),
 		readCh:      make(chan any, 100),
-		stopReadCh:  make(chan struct{}),
-		stopHeartCh: make(chan struct{}),
-		heartMu:     &sync.Mutex{},
+		stopReadCh:  make(chan struct{}, 1),
+		stopHeartCh: make(chan struct{}, 1),
 		heartBeat:   heartBeat,
 		authFunc:    authFunc,
 		readJSON:    readJSON,
@@ -122,19 +120,24 @@ func (self *client) read() {
 		case <-self.stopReadCh:
 			return
 		default:
+			self.mu.Lock()
 			if self.conn == nil {
+				self.mu.Unlock()
 				return
 			}
 
 			if self.readJSON {
 				var msg any
-				if err := self.conn.ReadJSON(&msg); err != nil {
+				err := self.conn.ReadJSON(&msg)
+				self.mu.Unlock()
+				if err != nil {
 					self.Close()
 					return
 				}
 				self.readCh <- msg
 			} else {
 				_, message, err := self.conn.ReadMessage()
+				self.mu.Unlock()
 				if err != nil {
 					self.Close()
 					return
@@ -157,20 +160,18 @@ func (self *client) heartbeat() {
 		case <-self.stopHeartCh:
 			return
 		case <-ticker.C:
+			self.mu.Lock()
 			if self.conn == nil {
+				self.mu.Unlock()
 				return
 			}
 
-			if !self.heartMu.TryLock() {
-				continue
-			}
-
-			if err := self.conn.WriteControl(ws.PingMessage, []byte{}, time.Now().Add(time.Second*2)); err != nil {
+			err := self.conn.WriteControl(ws.PingMessage, []byte{}, time.Now().Add(time.Second))
+			self.mu.Unlock()
+			if err != nil {
 				self.Close()
-				self.heartMu.Unlock()
 				return
 			}
-			self.heartMu.Unlock()
 			break
 		}
 	}
@@ -185,6 +186,7 @@ func (self *client) Close() {
 
 	self.isConnected = false
 	self.stopHeartCh <- struct{}{}
+	self.stopReadCh <- struct{}{}
 	self.closeCh <- self.id
 
 	_ = self.conn.Close()
