@@ -144,7 +144,6 @@ func (self *client) read() {
 				}
 				self.readCh <- message
 			}
-
 			break
 
 		}
@@ -160,7 +159,10 @@ func (self *client) heartbeat() {
 		case <-self.stopHeartCh:
 			return
 		case <-ticker.C:
-			self.mu.Lock()
+			if !self.mu.TryLock() {
+				continue
+			}
+
 			if self.conn == nil {
 				self.mu.Unlock()
 				return
