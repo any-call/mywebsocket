@@ -24,14 +24,14 @@ type client struct {
 	readJSON bool // 标识是否以 JSON 方式读取消息
 }
 
-func NewClientWithAuth(Id string, url string, heartBeat time.Duration, authFunc func(conn *ws.Conn) error, readJSON bool) Client {
+func NewClientWithAuth(Id string, url string, heartBeat time.Duration, authFunc func(conn *ws.Conn) error, readJSON bool, closeCh chan<- string) Client {
 	return &client{
 		id:          Id,
 		conn:        nil,
 		mu:          &sync.Mutex{},
 		url:         url,
 		isConnected: false,
-		closeCh:     make(chan string, 1),
+		closeCh:     closeCh,
 		readCh:      make(chan any, 100),
 		stopReadCh:  make(chan struct{}, 1),
 		stopHeartCh: make(chan struct{}, 1),
@@ -41,8 +41,8 @@ func NewClientWithAuth(Id string, url string, heartBeat time.Duration, authFunc 
 	}
 }
 
-func NewClient(id string, url string, heartBeat time.Duration, readJSON bool) Client {
-	return NewClientWithAuth(id, url, heartBeat, nil, readJSON)
+func NewClient(id string, url string, heartBeat time.Duration, readJSON bool, closeCh chan<- string) Client {
+	return NewClientWithAuth(id, url, heartBeat, nil, readJSON, closeCh)
 }
 
 func (self *client) ID() string {
@@ -189,8 +189,11 @@ func (self *client) Close() {
 	self.isConnected = false
 	self.stopHeartCh <- struct{}{}
 	self.stopReadCh <- struct{}{}
-	self.closeCh <- self.id
-
 	_ = self.conn.Close()
 	self.conn = nil
+
+	if self.closeCh != nil {
+		self.closeCh <- self.id
+	}
+
 }
