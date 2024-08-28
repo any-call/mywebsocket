@@ -71,6 +71,28 @@ func (self *client) WriteJson(data any) error {
 	return self.conn.WriteJSON(data)
 }
 
+func (self *client) WriteJsonByReadCb(data any, fn func(rData []byte) error) error {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+
+	if !self.isConnected {
+		return ws.ErrCloseSent
+	}
+
+	if err := self.conn.WriteJSON(data); err != nil {
+		return err
+	}
+
+	if fn != nil {
+		_, msg, err := self.conn.ReadMessage()
+		if err != nil {
+			return err
+		}
+		return fn(msg)
+	}
+	return nil
+}
+
 func (self *client) ReadChan() <-chan any {
 	return self.readCh
 }
