@@ -44,6 +44,12 @@ func (self *clientManager) Connect(conn *ws.Conn, id string) (Client, error) {
 	}
 
 	self.m.Store(ct.ID(), ct)
+
+	// then attach to create
+	if ch := self.createCh; ch != nil {
+		ch <- ct
+	}
+
 	return ct, nil
 }
 
