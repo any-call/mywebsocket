@@ -7,12 +7,13 @@ import (
 )
 
 type server struct {
-	addr     string
-	upgrader ws.Upgrader
-	connfun  ConnectFun
+	addr      string
+	upgrader  ws.Upgrader
+	connfun   ConnectFun
+	autoClose bool
 }
 
-func NewServer(addr string, handleFn ConnectFun) Server {
+func NewServer(addr string, handleFn ConnectFun, autoClose bool) Server {
 	return &server{
 		addr: addr,
 		upgrader: ws.Upgrader{
@@ -20,7 +21,8 @@ func NewServer(addr string, handleFn ConnectFun) Server {
 				return true
 			},
 		},
-		connfun: nil,
+		connfun:   handleFn,
+		autoClose: autoClose,
 	}
 }
 
@@ -53,11 +55,12 @@ func (self *server) handleConnections(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
-	// 调用用户提供的连接处理函数
-	if self.connfun == nil {
-		_ = conn.Close()
-		return
-	}
 
-	go self.connfun(conn)
+	defer func() {
+		if self.autoClose {
+			_ = conn.Close()
+		}
+	}()
+
+	self.connfun(conn)
 }
