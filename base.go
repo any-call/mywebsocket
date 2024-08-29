@@ -19,7 +19,14 @@ type (
 		SendToClient(msg *Message)
 	}
 
-	ReadCBFun func(id string, data any)
+	Server interface {
+		Start(route string) error
+		StartTLS(route, certFile, keyFile string) error
+		Config(upgrader ws.Upgrader)
+	}
+
+	ConnectFun func(conn *ws.Conn)
+	ReadCBFun  func(id string, data any)
 
 	Message struct {
 		Id     string //空代表发给所有的客户端
