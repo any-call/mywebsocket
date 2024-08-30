@@ -148,16 +148,13 @@ func (self *client) read() {
 		case <-self.stopReadCh:
 			return
 		default:
-			self.Lock()
 			if self.conn == nil {
-				self.Unlock()
 				return
 			}
 
 			if self.readJSON {
 				var msg any
 				err := self.conn.ReadJSON(&msg)
-				self.Unlock()
 				if err != nil {
 					self.Close()
 					return
@@ -169,9 +166,7 @@ func (self *client) read() {
 
 			} else {
 				_, message, err := self.conn.ReadMessage()
-				self.Unlock()
 				if err != nil {
-					self.Close()
 					return
 				}
 
@@ -187,24 +182,24 @@ func (self *client) read() {
 
 func (self *client) heartbeat() {
 	ticker := time.NewTicker(self.heartBeat)
-	defer ticker.Stop()
+	defer func() {
+		ticker.Stop()
+		p := recover()
+		if p != nil {
+			fmt.Println("receive panic:", p)
+		}
+	}()
 
 	for {
 		select {
 		case <-self.stopHeartCh:
 			return
 		case <-ticker.C:
-			if !self.TryLock() {
-				continue
-			}
-
 			if self.conn == nil {
-				self.Unlock()
 				return
 			}
 
 			err := self.conn.WriteControl(ws.PingMessage, []byte{}, time.Now().Add(time.Second))
-			self.Unlock()
 			if err != nil {
 				self.Close()
 				return

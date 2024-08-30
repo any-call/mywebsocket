@@ -8,7 +8,7 @@ import (
 
 func TestServer_Start(t *testing.T) {
 	manager := NewClientManager(nil, nil, handleReceiveMsg)
-	ser := NewServer(":19050", func(conn *ws.Conn) {
+	ser := NewServer(":19080", func(conn *ws.Conn) {
 		fmt.Println("enter conn:", conn)
 		if _, err := manager.Connect(conn, conn.RemoteAddr().String()); err != nil {
 			fmt.Println("manager.connect err:", err)
@@ -27,4 +27,40 @@ func TestServer_Start(t *testing.T) {
 
 func handleReceiveMsg(id string, data any) {
 	fmt.Println("received data is :", id, data)
+}
+
+func Test_Subscribe(t *testing.T) {
+	//ws://64.176.53.2:19080
+	//ws://127.0.0.1:19080
+	conn, _, err := ws.DefaultDialer.Dial("ws://127.0.0.1:19080", nil)
+	if err != nil {
+		t.Error("conn err:", err)
+		return
+	}
+
+	type BaseReq struct {
+		Method string `json:"method"`
+		Params string `json:"params"`
+	}
+
+	if err := conn.WriteJSON(BaseReq{
+		Method: "ForexAggregatePerSec",
+		Params: "",
+	}); err != nil {
+		t.Error("subscribe err:", err)
+		return
+	}
+
+	t.Log("send success")
+
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			t.Error("read msg err:", err)
+			break
+		}
+		t.Log("read msg:", string(msg))
+	}
+
+	t.Log("run over")
 }
