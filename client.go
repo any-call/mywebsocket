@@ -31,7 +31,7 @@ func NewClient(conn *ws.Conn, Id string, heartBeat time.Duration,
 	c := &client{
 		id:          Id,
 		conn:        conn,
-		isConnected: false,
+		isConnected: true,
 		closeCh:     closeCh,
 		stopReadCh:  make(chan struct{}, 1),
 		readCbFun:   readFn,
