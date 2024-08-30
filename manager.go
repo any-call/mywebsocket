@@ -94,15 +94,29 @@ func (self *clientManager) startReceiveSendTo() {
 	for {
 		select {
 		case pro := <-self.wantToSendCh:
-			if value, ok := self.m.Load(pro.Id); ok {
-				if pro.IsJson {
-					go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
-				} else {
-					if strMsg, ok := pro.Data.(string); ok {
-						go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
+			if pro.Id == "" { //set to all client
+				self.m.Range(func(_, value any) bool {
+					if pro.IsJson {
+						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
+					} else {
+						if strMsg, ok := pro.Data.(string); ok {
+							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
+						}
+					}
+					return true
+				})
+			} else {
+				if value, ok := self.m.Load(pro.Id); ok {
+					if pro.IsJson {
+						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
+					} else {
+						if strMsg, ok := pro.Data.(string); ok {
+							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
+						}
 					}
 				}
 			}
+
 		}
 	}
 }
