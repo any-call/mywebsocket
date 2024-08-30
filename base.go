@@ -2,6 +2,7 @@ package mywebsocket
 
 import (
 	ws "github.com/gorilla/websocket"
+	"time"
 )
 
 type (
@@ -9,7 +10,7 @@ type (
 		ID() string
 		WriteMessage(data string) error
 		WriteJson(data any) error
-		WriteJsonByReadCb(data any, fn func(rData []byte) error) error
+		WriteAndReadJson(data any, timeout time.Duration) (any, error)
 		IsConnect() bool
 		Close()
 	}

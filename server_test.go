@@ -32,11 +32,22 @@ func handleReceiveMsg(id string, data any) {
 func Test_Subscribe(t *testing.T) {
 	//ws://64.176.53.2:19080
 	//ws://127.0.0.1:19080
-	conn, _, err := ws.DefaultDialer.Dial("ws://127.0.0.1:19080", nil)
+	conn, _, err := ws.DefaultDialer.Dial("ws://64.176.53.2:19080", nil)
 	if err != nil {
 		t.Error("conn err:", err)
 		return
 	}
+
+	go func() {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				t.Error("read msg err:", err)
+				break
+			}
+			t.Log("read msg:", string(msg))
+		}
+	}()
 
 	type BaseReq struct {
 		Method string `json:"method"`
@@ -51,16 +62,8 @@ func Test_Subscribe(t *testing.T) {
 		return
 	}
 
-	t.Log("send success")
-
-	for {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			t.Error("read msg err:", err)
-			break
-		}
-		t.Log("read msg:", string(msg))
-	}
+	ch := make(chan struct{}, 1)
+	<-ch
 
 	t.Log("run over")
 }
