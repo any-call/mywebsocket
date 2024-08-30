@@ -62,5 +62,7 @@ func (self *server) handleConnections(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	self.connfun(conn)
+	if self.connfun != nil {
+		self.connfun(conn)
+	}
 }

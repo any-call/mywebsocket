@@ -37,6 +37,8 @@ func NewClient(conn *ws.Conn, Id string, heartBeat time.Duration,
 		readJSON:    readJSON,
 	}
 
+	go c.read()
+	go c.heartbeat()
 	return c
 }
 

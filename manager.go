@@ -53,6 +53,16 @@ func (self *clientManager) Connect(conn *ws.Conn, id string) (Client, error) {
 	return ct, nil
 }
 
+func (self *clientManager) TotalConn() int {
+	count := 0
+	self.m.Range(func(key, _ interface{}) bool {
+		count++
+		return true
+	})
+
+	return count
+}
+
 func (self *clientManager) SendToClient(msg *Message) {
 	if msg != nil && msg.Data != nil {
 		self.wantToSendCh <- msg

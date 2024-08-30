@@ -15,6 +15,7 @@ type (
 	}
 
 	ClientManager interface {
+		TotalConn() int
 		Connect(conn *ws.Conn, id string) (Client, error)
 		SendToClient(msg *Message)
 	}
