@@ -1,6 +1,7 @@
 package mywebsocket
 
 import (
+	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
 	"sync"
@@ -94,7 +95,7 @@ func (self *client) WriteJson(data any) error {
 	return nil
 }
 
-func (self *client) WriteAndReadJson(data any, timeout time.Duration) (any, error) {
+func (self *client) WriteAndReadJson(data any, timeout time.Duration) ([]byte, error) {
 	self.Lock()
 	if !self.isConnected {
 		self.Unlock()
@@ -123,7 +124,11 @@ func (self *client) WriteAndReadJson(data any, timeout time.Duration) (any, erro
 	// 等待读操作返回数据或超时
 	select {
 	case response := <-self.readCbCh:
-		return response, nil
+		if self.readJSON {
+			return json.Marshal(response)
+		}
+		return response.([]byte), nil
+
 	case <-timeoutChan:
 		return nil, fmt.Errorf("read timeout after %v", timeout)
 	}

@@ -10,7 +10,7 @@ type (
 		ID() string
 		WriteMessage(data string) error
 		WriteJson(data any) error
-		WriteAndReadJson(data any, timeout time.Duration) (any, error)
+		WriteAndReadJson(data any, timeout time.Duration) ([]byte, error)
 		IsConnect() bool
 		Close()
 	}
