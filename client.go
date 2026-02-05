@@ -3,9 +3,10 @@ package mywebsocket
 import (
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"sync"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 )
 
 type client struct {

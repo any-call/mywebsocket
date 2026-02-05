@@ -3,6 +3,7 @@ package mywebsocket
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	ws "github.com/gorilla/websocket"
@@ -34,7 +35,10 @@ func handleReceiveMsg(id string, data any) {
 func Test_Subscribe(t *testing.T) {
 	//ws://64.176.53.2:19080
 	//ws://127.0.0.1:19080
-	conn, _, err := ws.DefaultDialer.Dial("ws://64.176.53.2:19080", nil)
+	header := http.Header{}
+	header.Set("X-Client-ID", "myid")
+	header.Set("X-Client-Subs", strings.Join([]string{"11", "22"}, ","))
+	conn, _, err := ws.DefaultDialer.Dial("ws://64.176.53.2:19080", header)
 	if err != nil {
 		t.Error("conn err:", err)
 		return

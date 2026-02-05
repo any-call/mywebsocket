@@ -2,9 +2,10 @@ package mywebsocket
 
 import (
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"sync"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 )
 
 type (
@@ -90,11 +91,29 @@ func (self *clientManager) listenClose() {
 	}
 }
 
+func (self *clientManager) RangeConn(fn func(id string, c Client) bool) {
+	self.m.Range(func(key, value any) bool {
+		id, _ := key.(string)
+		c, _ := value.(Client)
+		return fn(id, c)
+	})
+}
+
 func (self *clientManager) startReceiveSendTo() {
 	for {
 		select {
 		case pro := <-self.wantToSendCh:
-			if pro.Id == "" { //set to all client
+			if pro.To != "" { // 1️⃣ 精确投递
+				if value, ok := self.m.Load(pro.To); ok {
+					if pro.IsJson {
+						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
+					} else {
+						if strMsg, ok := pro.Data.(string); ok {
+							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
+						}
+					}
+				}
+			} else { // 2️⃣ 广播 TO 所有客户端
 				self.m.Range(func(_, value any) bool {
 					if pro.IsJson {
 						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
@@ -105,18 +124,7 @@ func (self *clientManager) startReceiveSendTo() {
 					}
 					return true
 				})
-			} else {
-				if value, ok := self.m.Load(pro.Id); ok {
-					if pro.IsJson {
-						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
-					} else {
-						if strMsg, ok := pro.Data.(string); ok {
-							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
-						}
-					}
-				}
 			}
-
 		}
 	}
 }

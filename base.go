@@ -21,6 +21,7 @@ type (
 		TotalConn() int
 		Connect(conn *ws.Conn, id string) (Client, error)
 		SendToClient(msg *Message)
+		RangeConn(func(id string, c Client) bool)
 	}
 
 	Server interface {
@@ -33,7 +34,10 @@ type (
 	ReadCBFun  func(id string, data any)
 
 	Message struct {
-		Id     string //空代表发给所有的客户端
+		// ===== 路由层 =====
+		To string // 精确 ID（不传转发所有客户端）
+
+		// ===== 数据层 =====
 		IsJson bool
 		Data   any
 	}
