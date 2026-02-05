@@ -1,8 +1,10 @@
 package mywebsocket
 
 import (
-	ws "github.com/gorilla/websocket"
+	"net/http"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 )
 
 type (
@@ -27,7 +29,7 @@ type (
 		Config(upgrader ws.Upgrader)
 	}
 
-	ConnectFun func(conn *ws.Conn)
+	ConnectFun func(conn *ws.Conn, r *http.Request)
 	ReadCBFun  func(id string, data any)
 
 	Message struct {

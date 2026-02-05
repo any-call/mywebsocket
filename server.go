@@ -1,9 +1,10 @@
 package mywebsocket
 
 import (
-	ws "github.com/gorilla/websocket"
 	"log"
 	"net/http"
+
+	ws "github.com/gorilla/websocket"
 )
 
 type server struct {
@@ -63,6 +64,6 @@ func (self *server) handleConnections(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if self.connfun != nil {
-		self.connfun(conn)
+		self.connfun(conn, r)
 	}
 }

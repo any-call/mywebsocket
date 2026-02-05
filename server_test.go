@@ -2,13 +2,15 @@ package mywebsocket
 
 import (
 	"fmt"
-	ws "github.com/gorilla/websocket"
+	"net/http"
 	"testing"
+
+	ws "github.com/gorilla/websocket"
 )
 
 func TestServer_Start(t *testing.T) {
 	manager := NewClientManager(nil, nil, handleReceiveMsg)
-	ser := NewServer(":19080", func(conn *ws.Conn) {
+	ser := NewServer(":19080", func(conn *ws.Conn, r *http.Request) {
 		fmt.Println("enter conn:", conn)
 		if _, err := manager.Connect(conn, conn.RemoteAddr().String()); err != nil {
 			fmt.Println("manager.connect err:", err)
@@ -38,6 +40,21 @@ func Test_Subscribe(t *testing.T) {
 		return
 	}
 
+	type BaseReq struct {
+		Type   string   `json:"type"`
+		Method string   `json:"method"`
+		Params []string `json:"params"`
+	}
+
+	if err := conn.WriteJSON(BaseReq{
+		Type:   "forex",
+		Method: "ForexAggregatePerSec",
+		Params: []string{"AED/AUD"},
+	}); err != nil {
+		t.Error("subscribe err:", err)
+		return
+	}
+
 	go func() {
 		for {
 			_, msg, err := conn.ReadMessage()
@@ -48,19 +65,6 @@ func Test_Subscribe(t *testing.T) {
 			t.Log("read msg:", string(msg))
 		}
 	}()
-
-	type BaseReq struct {
-		Method string `json:"method"`
-		Params string `json:"params"`
-	}
-
-	if err := conn.WriteJSON(BaseReq{
-		Method: "ForexAggregatePerSec",
-		Params: "",
-	}); err != nil {
-		t.Error("subscribe err:", err)
-		return
-	}
 
 	ch := make(chan struct{}, 1)
 	<-ch
