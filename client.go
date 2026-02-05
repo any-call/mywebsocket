@@ -17,14 +17,13 @@ type client struct {
 	closeCh     chan<- string
 
 	readCbFun            ReadCBFun
-	readCbCh             chan any
+	readCbCh             chan Envelope
 	tmpReadAfterWriteFun func([]byte)
 	stopReadCh           chan struct{}
 
 	stopHeartCh chan struct{}
 	heartBeat   time.Duration
 
-	readJSON        bool            // 标识是否以 JSON 方式读取消息
 	subInscriptions map[string]bool // 增加用户订阅的消息类型
 }
 
@@ -39,7 +38,6 @@ func NewClient(conn *ws.Conn, Id string, subList []string, heartBeat time.Durati
 		readCbFun:       readFn,
 		stopHeartCh:     make(chan struct{}, 1),
 		heartBeat:       heartBeat,
-		readJSON:        readJSON,
 		subInscriptions: make(map[string]bool),
 	}
 	if subList != nil && len(subList) > 0 {
@@ -133,7 +131,7 @@ func (self *client) WriteAndReadJson(data any, timeout time.Duration) ([]byte, e
 		return nil, err
 	}
 
-	self.readCbCh = make(chan any)
+	self.readCbCh = make(chan Envelope)
 	defer func() {
 		self.Unlock()
 		self.readCbCh = nil
@@ -143,10 +141,7 @@ func (self *client) WriteAndReadJson(data any, timeout time.Duration) ([]byte, e
 	// 等待读操作返回数据或超时
 	select {
 	case response := <-self.readCbCh:
-		if self.readJSON {
-			return json.Marshal(response)
-		}
-		return response.([]byte), nil
+		return json.Marshal(response)
 
 	case <-timeoutChan:
 		return nil, fmt.Errorf("read timeout after %v", timeout)
@@ -179,36 +174,21 @@ func (self *client) read() {
 				return
 			}
 
-			if self.readJSON {
-				var msg any
-				err := self.conn.ReadJSON(&msg)
-				if err != nil {
-					self.Close()
-					return
-				}
+			var msg Envelope
+			err := self.conn.ReadJSON(&msg)
+			if err != nil {
+				self.Close()
+				return
+			}
 
-				if self.readCbCh != nil {
-					self.readCbCh <- msg
-				} else {
-					if self.readCbFun != nil {
-						go self.readCbFun(self.id, msg)
-					}
-				}
-
+			if self.readCbCh != nil {
+				self.readCbCh <- msg
 			} else {
-				_, message, err := self.conn.ReadMessage()
-				if err != nil {
-					return
-				}
-
-				if self.readCbCh != nil {
-					self.readCbCh <- message
-				} else {
-					if self.readCbFun != nil {
-						go self.readCbFun(self.id, message)
-					}
+				if self.readCbFun != nil {
+					go self.readCbFun(self.id, msg)
 				}
 			}
+
 			break
 
 		}

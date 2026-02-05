@@ -28,7 +28,7 @@ func TestServer_Start(t *testing.T) {
 	t.Log("run ok")
 }
 
-func handleReceiveMsg(id string, data any) {
+func handleReceiveMsg(id string, data Envelope) {
 	fmt.Println("received data is :", id, data)
 }
 

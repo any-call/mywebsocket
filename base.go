@@ -1,6 +1,7 @@
 package mywebsocket
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -32,8 +33,9 @@ type (
 	}
 
 	ConnectFun func(conn *ws.Conn, r *http.Request)
-	ReadCBFun  func(id string, data any)
+	ReadCBFun  func(id string, data Envelope)
 
+	//收到消息中转结构定义
 	Message struct {
 		// ===== 路由层 =====
 		ID     string   // 精确 ID
@@ -42,5 +44,15 @@ type (
 		// ===== 数据层 =====
 		IsJson bool
 		Data   any
+	}
+
+	//信封定义，各端发送的标准格式
+	Envelope struct {
+		Type  string `json:"type"` // log / metric / cmd / ack ...
+		From  string `json:"from"` // 节点 ID（服务端可补）
+		To    string `json:"to,omitempty"`
+		Topic string `json:"topic,omitempty"`
+
+		Data json.RawMessage `json:"data"` //真正的业务数据
 	}
 )
