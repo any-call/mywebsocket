@@ -13,7 +13,7 @@ func TestServer_Start(t *testing.T) {
 	manager := NewClientManager(nil, nil, handleReceiveMsg)
 	ser := NewServer(":19080", func(conn *ws.Conn, r *http.Request) {
 		fmt.Println("enter conn:", conn)
-		if _, err := manager.Connect(conn, conn.RemoteAddr().String()); err != nil {
+		if _, err := manager.Connect(conn, conn.RemoteAddr().String(), nil); err != nil {
 			fmt.Println("manager.connect err:", err)
 		} else {
 			fmt.Println("manager total:", manager.TotalConn())

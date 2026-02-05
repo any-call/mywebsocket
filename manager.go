@@ -35,11 +35,11 @@ func NewClientManager(createCh, destoryCh chan<- Client, readFn ReadCBFun) Clien
 	return manager
 }
 
-func (self *clientManager) Connect(conn *ws.Conn, id string) (Client, error) {
+func (self *clientManager) Connect(conn *ws.Conn, id string, subTypes []string) (Client, error) {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	ct := NewClient(conn, id, time.Second*10, true, self.readCbFun, self.closeCh)
+	ct := NewClient(conn, id, subTypes, time.Second*10, true, self.readCbFun, self.closeCh)
 	if _, ok := self.m.Load(ct.ID()); ok {
 		return nil, fmt.Errorf("client already exists :%s", ct.ID())
 	}
@@ -99,32 +99,68 @@ func (self *clientManager) RangeConn(fn func(id string, c Client) bool) {
 	})
 }
 
+// startReceiveSendTo 只负责消息投递：
+// - 投递未命中：直接丢弃
+// 不做任何路由或业务判断
 func (self *clientManager) startReceiveSendTo() {
 	for {
 		select {
 		case pro := <-self.wantToSendCh:
-			if pro.To != "" { // 1️⃣ 精确投递
-				if value, ok := self.m.Load(pro.To); ok {
-					if pro.IsJson {
-						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
-					} else {
-						if strMsg, ok := pro.Data.(string); ok {
-							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
-						}
-					}
+			// 1️⃣ 精确 ID 投递（最高优先级）
+			if pro.ID != "" { // 1️⃣ 精确投递
+				if value, ok := self.m.Load(pro.ID); ok {
+					self.write(value.(Client), pro)
 				}
-			} else { // 2️⃣ 广播 TO 所有客户端
+				// 没找到，直接丢
+				continue
+			}
+
+			// 2️⃣ 按 Topic 订阅转发
+			if len(pro.Topics) > 0 {
 				self.m.Range(func(_, value any) bool {
-					if pro.IsJson {
-						go func(value any, data any) { value.(Client).WriteJson(data) }(value, pro.Data)
-					} else {
-						if strMsg, ok := pro.Data.(string); ok {
-							go func(value any, data string) { value.(Client).WriteMessage(data) }(value, strMsg)
-						}
+					c := value.(Client)
+					if topicMatch(pro.Topics, c.Subscriptions()) {
+						self.write(c, pro)
 					}
 					return true
 				})
+				continue
 			}
+
+			//广播 TO 所有客户端
+			self.m.Range(func(_, value any) bool {
+				self.write(value.(Client), pro)
+				return true
+			})
 		}
 	}
+}
+
+func (self *clientManager) write(c Client, pro *Message) {
+	if pro.IsJson {
+		go c.WriteJson(pro.Data)
+		return
+	}
+
+	if str, ok := pro.Data.(string); ok {
+		go c.WriteMessage(str)
+	}
+}
+
+func topicMatch(msgTopics []string, subs []string) bool {
+	if len(msgTopics) == 0 || len(subs) == 0 {
+		return false
+	}
+
+	subSet := make(map[string]struct{}, len(subs))
+	for _, s := range subs {
+		subSet[s] = struct{}{}
+	}
+
+	for _, t := range msgTopics {
+		if _, ok := subSet[t]; ok {
+			return true
+		}
+	}
+	return false
 }

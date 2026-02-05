@@ -10,6 +10,7 @@ import (
 type (
 	Client interface {
 		ID() string
+		Subscriptions() []string
 		WriteMessage(data string) error
 		WriteJson(data any) error
 		WriteAndReadJson(data any, timeout time.Duration) ([]byte, error)
@@ -19,7 +20,7 @@ type (
 
 	ClientManager interface {
 		TotalConn() int
-		Connect(conn *ws.Conn, id string) (Client, error)
+		Connect(conn *ws.Conn, id string, subScription []string) (Client, error)
 		SendToClient(msg *Message)
 		RangeConn(func(id string, c Client) bool)
 	}
@@ -35,7 +36,8 @@ type (
 
 	Message struct {
 		// ===== 路由层 =====
-		To string // 精确 ID（不传转发所有客户端）
+		ID     string   // 精确 ID
+		Topics []string // 根据订阅转发
 
 		// ===== 数据层 =====
 		IsJson bool

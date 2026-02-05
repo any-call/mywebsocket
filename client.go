@@ -24,21 +24,28 @@ type client struct {
 	stopHeartCh chan struct{}
 	heartBeat   time.Duration
 
-	readJSON bool // 标识是否以 JSON 方式读取消息
+	readJSON        bool            // 标识是否以 JSON 方式读取消息
+	subInscriptions map[string]bool // 增加用户订阅的消息类型
 }
 
-func NewClient(conn *ws.Conn, Id string, heartBeat time.Duration,
+func NewClient(conn *ws.Conn, Id string, subList []string, heartBeat time.Duration,
 	readJSON bool, readFn ReadCBFun, closeCh chan<- string) Client {
 	c := &client{
-		id:          Id,
-		conn:        conn,
-		isConnected: true,
-		closeCh:     closeCh,
-		stopReadCh:  make(chan struct{}, 1),
-		readCbFun:   readFn,
-		stopHeartCh: make(chan struct{}, 1),
-		heartBeat:   heartBeat,
-		readJSON:    readJSON,
+		id:              Id,
+		conn:            conn,
+		isConnected:     true,
+		closeCh:         closeCh,
+		stopReadCh:      make(chan struct{}, 1),
+		readCbFun:       readFn,
+		stopHeartCh:     make(chan struct{}, 1),
+		heartBeat:       heartBeat,
+		readJSON:        readJSON,
+		subInscriptions: make(map[string]bool),
+	}
+	if subList != nil && len(subList) > 0 {
+		for i, _ := range subList {
+			c.subInscriptions[subList[i]] = true
+		}
 	}
 
 	go c.read()
@@ -48,6 +55,17 @@ func NewClient(conn *ws.Conn, Id string, heartBeat time.Duration,
 
 func (self *client) ID() string {
 	return self.id
+}
+func (self *client) Subscriptions() []string {
+	self.Lock()
+	defer self.Unlock()
+
+	var ret []string = []string{}
+	for key, _ := range self.subInscriptions {
+		ret = append(ret, key)
+	}
+
+	return ret
 }
 
 func (self *client) WriteMessage(message string) error {
