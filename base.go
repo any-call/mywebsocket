@@ -51,7 +51,7 @@ type (
 		Type  string `json:"type"` // log / metric / cmd / ack ...
 		From  string `json:"from"` // 节点 ID（服务端可补）
 		To    string `json:"to,omitempty"`
-		Topic string `json:"topic,omitempty"`
+		Topic string `json:"topic,omitempty"` //扩展标识
 
 		Data json.RawMessage `json:"data"` //真正的业务数据
 	}
