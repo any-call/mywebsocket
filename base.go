@@ -48,9 +48,10 @@ type (
 
 	//信封定义，各端发送的标准格式
 	Envelope struct {
-		Type string `json:"type"` // log / metric / cmd / ack ...
-		From string `json:"from"`
-		To   string `json:"to,omitempty"`
+		Type  string `json:"type"` // log / metric / cmd / ack ...
+		From  string `json:"from"` // 节点 ID（服务端可补）
+		To    string `json:"to,omitempty"`
+		Topic string `json:"topic,omitempty"`
 
 		Data json.RawMessage `json:"data"` //真正的业务数据
 	}
