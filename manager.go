@@ -35,11 +35,11 @@ func NewClientManager(createCh, destoryCh chan<- Client, readFn ReadCBFun) Clien
 	return manager
 }
 
-func (self *clientManager) Connect(conn *ws.Conn, id string, subTypes []string) (Client, error) {
+func (self *clientManager) Connect(conn *ws.Conn, id string, subTypes []string, remoteIP string) (Client, error) {
 	self.mu.Lock()
 	defer self.mu.Unlock()
 
-	ct := NewClient(conn, id, subTypes, time.Second*10, true, self.readCbFun, self.closeCh)
+	ct := NewClient(conn, id, subTypes, remoteIP, time.Second*10, true, self.readCbFun, self.closeCh)
 	if _, ok := self.m.Load(ct.ID()); ok {
 		return nil, fmt.Errorf("client already exists :%s", ct.ID())
 	}
@@ -97,6 +97,20 @@ func (self *clientManager) RangeConn(fn func(id string, c Client) bool) {
 		c, _ := value.(Client)
 		return fn(id, c)
 	})
+}
+
+func (self *clientManager) GetClient(id string) (Client, bool) {
+	if id == "" {
+		return nil, false
+	}
+
+	value, ok := self.m.Load(id)
+	if !ok {
+		return nil, false
+	}
+
+	c, ok := value.(Client)
+	return c, ok
 }
 
 // startReceiveSendTo 只负责消息投递：

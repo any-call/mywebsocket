@@ -25,9 +25,10 @@ type client struct {
 	heartBeat   time.Duration
 
 	subInscriptions map[string]bool // 增加用户订阅的消息类型
+	remoteIP        string
 }
 
-func NewClient(conn *ws.Conn, Id string, subList []string, heartBeat time.Duration,
+func NewClient(conn *ws.Conn, Id string, subList []string, rmtIP string, heartBeat time.Duration,
 	readJSON bool, readFn ReadCBFun, closeCh chan<- string) Client {
 	c := &client{
 		id:              Id,
@@ -39,6 +40,7 @@ func NewClient(conn *ws.Conn, Id string, subList []string, heartBeat time.Durati
 		stopHeartCh:     make(chan struct{}, 1),
 		heartBeat:       heartBeat,
 		subInscriptions: make(map[string]bool),
+		remoteIP:        rmtIP,
 	}
 	if subList != nil && len(subList) > 0 {
 		for i, _ := range subList {
@@ -64,6 +66,10 @@ func (self *client) Subscriptions() []string {
 	}
 
 	return ret
+}
+
+func (self *client) RemoteIP() string {
+	return self.remoteIP
 }
 
 func (self *client) WriteMessage(message string) error {
@@ -185,7 +191,7 @@ func (self *client) read() {
 				self.readCbCh <- msg
 			} else {
 				if self.readCbFun != nil {
-					go self.readCbFun(self.id, msg)
+					go self.readCbFun(self.id, self.remoteIP, msg)
 				}
 			}
 

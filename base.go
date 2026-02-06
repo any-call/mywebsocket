@@ -2,7 +2,9 @@ package mywebsocket
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -12,6 +14,7 @@ type (
 	Client interface {
 		ID() string
 		Subscriptions() []string
+		RemoteIP() string
 		WriteMessage(data string) error
 		WriteJson(data any) error
 		WriteAndReadJson(data any, timeout time.Duration) ([]byte, error)
@@ -21,9 +24,11 @@ type (
 
 	ClientManager interface {
 		TotalConn() int
-		Connect(conn *ws.Conn, id string, subScription []string) (Client, error)
+		Connect(conn *ws.Conn, id string, subScription []string, remoteIP string) (Client, error)
 		SendToClient(msg *Message)
 		RangeConn(func(id string, c Client) bool)
+		// ⭐ 新增：根据 ID 获取 Client
+		GetClient(id string) (Client, bool)
 	}
 
 	Server interface {
@@ -33,7 +38,7 @@ type (
 	}
 
 	ConnectFun func(conn *ws.Conn, r *http.Request)
-	ReadCBFun  func(id string, data Envelope)
+	ReadCBFun  func(id string, remoteIP string, data Envelope)
 
 	//收到消息中转结构定义
 	Message struct {
@@ -56,3 +61,15 @@ type (
 		Data json.RawMessage `json:"data"` //真正的业务数据
 	}
 )
+
+func GetRemoteIP(r *http.Request) string {
+	if r != nil {
+		ip, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+		if err != nil {
+			return ""
+		}
+		return ip
+	}
+
+	return ""
+}
