@@ -10,10 +10,10 @@ import (
 )
 
 func TestServer_Start(t *testing.T) {
-	manager := NewClientManager(nil, nil, handleReceiveMsg)
+	manager := NewClientManager(nil, nil, 100, handleReceiveMsg)
 	ser := NewServer(":19080", func(conn *ws.Conn, r *http.Request) {
 		fmt.Println("enter conn:", conn)
-		if _, err := manager.Connect(conn, conn.RemoteAddr().String(), nil); err != nil {
+		if _, err := manager.Connect(conn, conn.RemoteAddr().String(), nil, ""); err != nil {
 			fmt.Println("manager.connect err:", err)
 		} else {
 			fmt.Println("manager total:", manager.TotalConn())
@@ -28,7 +28,7 @@ func TestServer_Start(t *testing.T) {
 	t.Log("run ok")
 }
 
-func handleReceiveMsg(id string, data Envelope) {
+func handleReceiveMsg(id string, remoteIp string, data Envelope) {
 	fmt.Println("received data is :", id, data)
 }
 
