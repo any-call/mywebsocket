@@ -20,7 +20,7 @@ type (
 	}
 )
 
-func NewClientManager(createCh, destoryCh chan<- Client, readFn ReadCBFun) ClientManager {
+func NewClientManager(createCh, destoryCh chan<- Client, forwardChLen int, readFn ReadCBFun) ClientManager {
 	manager := &clientManager{
 		m:            &sync.Map{},
 		mu:           &sync.Mutex{},
@@ -28,7 +28,7 @@ func NewClientManager(createCh, destoryCh chan<- Client, readFn ReadCBFun) Clien
 		readCbFun:    readFn,
 		createCh:     createCh,
 		destoryCh:    destoryCh,
-		wantToSendCh: make(chan *Message, 1000),
+		wantToSendCh: make(chan *Message, forwardChLen), //转发信道长度
 	}
 	go manager.listenClose()
 	go manager.startReceiveSendTo()
