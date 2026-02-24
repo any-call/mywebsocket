@@ -2,6 +2,7 @@ package mywebsocket
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -26,6 +27,7 @@ type WSReceiver[T any] struct {
 	conn      *ws.Conn
 	connected atomic.Bool
 	onError   func(error)
+	heartBeat time.Duration
 }
 
 func NewWSReceiver[T any](
@@ -44,7 +46,7 @@ func NewWSReceiver[T any](
 	}
 }
 
-func (r *WSReceiver[T]) Start(headerCb func(header http.Header)) error {
+func (r *WSReceiver[T]) Start(heartBeat time.Duration, headerCb func(header http.Header)) error {
 	r.mu.Lock()
 	if r.connected.Load() {
 		r.mu.Unlock()
@@ -70,13 +72,14 @@ func (r *WSReceiver[T]) Start(headerCb func(header http.Header)) error {
 	}
 
 	r.mu.Lock()
+	r.heartBeat = heartBeat
 	r.conn = conn
 	r.connected.Store(true)
 	r.mu.Unlock()
 
 	// ⚠️ 建议异步，不要阻塞 Start
 	go r.readLoop()
-
+	go r.heartbeat()
 	return nil
 }
 
@@ -154,5 +157,32 @@ func (r *WSReceiver[T]) closeConn() {
 		_ = r.conn.Close()
 		r.conn = nil
 		r.connected.Store(false)
+	}
+}
+
+func (r *WSReceiver[T]) heartbeat() {
+	ticker := time.NewTicker(r.heartBeat)
+	defer func() {
+		ticker.Stop()
+		p := recover()
+		if p != nil {
+			fmt.Println("receive panic:", p)
+		}
+	}()
+
+	for {
+		select {
+		case <-r.ctx.Done():
+			return
+		case <-ticker.C:
+			if r.IsConnected() {
+				err := r.conn.WriteControl(ws.PingMessage, []byte{}, time.Now().Add(time.Second))
+				if err != nil {
+					r.Close()
+					return
+				}
+			}
+			break
+		}
 	}
 }
