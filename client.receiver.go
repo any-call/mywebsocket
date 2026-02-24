@@ -77,6 +77,13 @@ func (r *WSReceiver[T]) Start(heartBeat time.Duration, headerCb func(header http
 	r.connected.Store(true)
 	r.mu.Unlock()
 
+	// 设置 pong 处理（关键）
+	r.conn.SetReadDeadline(time.Now().Add(r.heartBeat * 2))
+	r.conn.SetPongHandler(func(string) error {
+		r.conn.SetReadDeadline(time.Now().Add(r.heartBeat * 2))
+		return nil
+	})
+
 	// ⚠️ 建议异步，不要阻塞 Start
 	go r.readLoop()
 	go r.heartbeat()
@@ -176,7 +183,9 @@ func (r *WSReceiver[T]) heartbeat() {
 			return
 		case <-ticker.C:
 			if r.IsConnected() {
+				r.mu.Lock()
 				err := r.conn.WriteControl(ws.PingMessage, []byte{}, time.Now().Add(time.Second))
+				r.mu.Unlock()
 				if err != nil {
 					r.Close()
 					return
